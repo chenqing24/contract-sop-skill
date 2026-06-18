@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# ==========================================
+# 合同自检脚本
+# 检查 MD 文件中关键数据字段的正确性
+#
+# 使用方式: bash scripts/check_contract.sh [合同文本_Markdown版.md]
+# ==========================================
+
+FILE="${1:-合同文本_Markdown版.md}"
+
+if [ ! -f "$FILE" ]; then
+    echo "❌ 文件不存在: $FILE"
+    exit 1
+fi
+
+PASS=0
+FAIL=0
+
+check_contains() {
+    local label="$1"
+    local pattern="$2"
+    if grep -q "$pattern" "$FILE"; then
+        echo "  ✅ $label"
+        PASS=$((PASS + 1))
+    else
+        echo "  ❌ $label — 未找到 '$pattern'"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
+check_not_contains() {
+    local label="$1"
+    local pattern="$2"
+    if ! grep -q "$pattern" "$FILE"; then
+        echo "  ✅ $label"
+        PASS=$((PASS + 1))
+    else
+        echo "  ❌ $label — 残留旧值 '$pattern'"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
+check_count() {
+    local label="$1"
+    local pattern="$2"
+    local expected="$3"
+    local actual
+    actual=$(grep -c "$pattern" "$FILE" || echo 0)
+    if [ "$actual" -eq "$expected" ]; then
+        echo "  ✅ $label ($expected 处)"
+        PASS=$((PASS + 1))
+    else
+        echo "  ❌ $label — 期望 $expected 处，实际 $actual 处"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
+echo "========================================"
+echo "合同自检: $FILE"
+echo "========================================"
+echo ""
+
+# ═══════════════════════════════════════
+# 一、应出现项（正向检查）
+# 根据实际合同内容修改以下检查项
+# ═══════════════════════════════════════
+
+echo "--- 应出现 ---"
+
+# 示例（按实际合同替换）:
+# check_contains "合同金额 ¥XX,XXX" "¥XX,XXX"
+# check_contains "税务局" "增值税专用发票"
+# check_contains "违约金 万分之五" "万分之五"
+# check_contains "违约金上限 20%" "20%"
+# check_contains "管辖 乙方所在地" "乙方所在地人民法院"
+# check_contains "合同有效期" "合同有效期为"
+# check_contains "一式两份" "一式两份"
+
+echo ""
+echo "--- 应删除 ---"
+
+# ═══════════════════════════════════════
+# 二、应删除项（负向检查）
+# 列出所有旧版本不应再出现的值
+# ═══════════════════════════════════════
+
+# 示例:
+# check_not_contains "旧金额" "旧金额值"
+# check_not_contains "旧工期" "旧工期值"
+
+echo ""
+echo "--- 数量检查 ---"
+
+# ═══════════════════════════════════════
+# 三、数量检查
+# 确保特定字段恰好出现指定次数
+# ═══════════════════════════════════════
+
+# 示例:
+# check_count "合同有效期恰好1处" "合同有效期为" 1
+
+echo ""
+echo "========================================"
+echo "结果: $PASS 通过 / $FAIL 失败"
+echo "========================================"
+
+if [ "$FAIL" -gt 0 ]; then
+    exit 1
+fi
+exit 0
